@@ -1,0 +1,4 @@
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:#F4F7F0;color:#3A4437;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;width:100%;}
+button{font-family:inherit;cursor:pointer}
+input,textarea{font-family:inherit}
