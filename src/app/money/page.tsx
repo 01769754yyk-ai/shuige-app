@@ -6,7 +6,7 @@ function NavBar(){const items=[['home','首页','/'],['money','记账','/money']
 
 const EXP_CATS=['餐饮','交通','购物','学习','娱乐','其他'];
 const INC_CATS=['主业收入','副业收入'];
-const QUICK=[['☕ 早餐','12'],['🚌 交通','3'],['🥗 午餐','20'],['🛒 买菜','35'],['📚 学习','30']];
+const QUICK=[['☕早餐','12'],['🚌交通','3'],['🥗午餐','20'],['🛒买菜','35'],['📚学习','30']];
 const RING_COLORS=['#E07A5F','#F2A65A','#5B8C5A','#3F8F82','#8A78CE','#C9B8AC'];
 
 export default function Money(){
@@ -18,9 +18,10 @@ export default function Money(){
   const [date,setDate]=useState(()=>new Date().toISOString().slice(0,10)); const [note,setNote]=useState('');
   const [showAdd,setShowAdd]=useState(false); const [showCheckin,setShowCheckin]=useState(false); const [showTrash,setShowTrash]=useState(false);
   const [view,setView]=useState<'月'|'年'>('月'); const [filter,setFilter]=useState('全部');
-  const [savings,setSavings]=useState({saved:2000,shortTarget:5000,longTarget:50000,budget:3000});
+  // 存款目标（真实手动）
+  const [savings,setSavings]=useState({saved:0,shortTarget:5000,longTarget:50000,monthSave:1000});
 
-  useEffect(()=>{ try{ const raw=localStorage.getItem(STORE); if(raw){ const d=JSON.parse(raw); if(d.records&&d.records.length)setRecords(d.records); if(d.trash&&d.trash.length)setTrash(d.trash); if(d.savings)setSavings(d.savings);} }catch(e){} setLoaded(true); },[]);
+  useEffect(()=>{ try{ const raw=localStorage.getItem(STORE); if(raw){ const d=JSON.parse(raw); if(d.records&&d.records.length)setRecords(d.records); if(d.trash&&d.trash.length)setTrash(d.trash); if(d.savings)setSavings({saved:0,shortTarget:5000,longTarget:50000,monthSave:1000,...d.savings});} }catch(e){} setLoaded(true); },[]);
   useEffect(()=>{ if(!loaded)return; try{ localStorage.setItem(STORE, JSON.stringify({records,trash,savings})); }catch(e){} },[records,trash,savings,loaded]);
 
   const income=records.filter(r=>r.type==='收入').reduce((a,r)=>a+Number(r.amount),0);
@@ -41,7 +42,8 @@ export default function Money(){
 
   const nowMonth=new Date().toISOString().slice(0,7);
   const monthExpense=records.filter(r=>r.type==='支出'&&r.date.startsWith(nowMonth)).reduce((a,r)=>a+Number(r.amount),0);
-  const budgetPct=Math.min(100,Math.round(monthExpense/savings.budget*100)); const overBudget=monthExpense>savings.budget;
+  const budgetPct=Math.min(100,Math.round(monthExpense/savings.budget?monthExpense/savings.budget*100:0));
+  const overBudget=monthExpense>savings.budget;
   const prevMonth=new Date();prevMonth.setMonth(prevMonth.getMonth()-1);const pm=prevMonth.toISOString().slice(0,7);
   const prevExpense=records.filter(r=>r.type==='支出'&&r.date.startsWith(pm)).reduce((a,r)=>a+Number(r.amount),0);
   let trendTip='';if(prevExpense>0){const diff=Math.round((monthExpense-prevExpense)/prevExpense*100);trendTip=diff>0?`本月支出比上月多${Math.abs(diff)}%`:(diff<0?`本月支出比上月少${Math.abs(diff)}%`:'与上月持平');}
@@ -56,6 +58,19 @@ export default function Money(){
 
   let acc=0;const arcs=chartData.map(([c,v],i)=>{const pct=Number(v)/chartTotal;const f=acc*360;acc+=pct;return {color:RING_COLORS[i%RING_COLORS.length],from:f,to:acc*360,pct};});
 
+  // 目标进度
+  const shortPct=Math.min(100,Math.round(savings.saved/Math.max(savings.shortTarget,1)*100));
+  const longPct=Math.min(100,Math.round(savings.saved/Math.max(savings.longTarget,1)*100));
+
+  const GoalBar=({label,target,pct,color}:any)=>(<div style={{background:'#fff',border:'1px solid #E5ECDE',borderRadius:12,padding:12,marginTop:8}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:13,fontWeight:700}}>{label}</span><button onClick={()=>{const v=prompt('设置'+label,target);const n=parseFloat(v||'');if(n>0)setSavings(s=>({...s,[label==='短目标'?'shortTarget':'longTarget']:n}));}} style={{background:'none',border:'none',color:'#5B8C5A',fontSize:12}}>¥{target} 改</button></div>
+    <div style={{height:8,borderRadius:4,background:'#EDF2E8',overflow:'hidden',marginTop:8}}><div style={{height:'100%',width:pct+'%',background:color,borderRadius:4}}/></div>
+    <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#8A9785',marginTop:6}}>
+      <span>已存 ¥{savings.saved} · {pct}%</span>
+      <span>{pct>=100?'🎉达标':'还差 ¥'+(Math.max(target-savings.saved,0))}</span>
+    </div>
+  </div>);
+
   return (
     <div style={{minHeight:'100vh',padding:'16px 14px 80px',background:'#F4F7F0',color:'#3A4437',fontSize:15}}>
       <h1 style={{fontSize:21,fontWeight:800}}>记账</h1>
@@ -65,15 +80,23 @@ export default function Money(){
         <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>收入</div><div style={{fontSize:15,fontWeight:800,color:'#5B8C5A'}}>+{income}</div></div>
         <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>支出</div><div style={{fontSize:15,fontWeight:800,color:'#E07A5F'}}>-{expense}</div></div>
         <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>结余</div><div style={{fontSize:15,fontWeight:800}}>{balance}</div></div>
-        <div style={{flex:1,background:'#fff',border:'1px solid #5B8C5A',borderRadius:14,padding:10,textAlign:'center',cursor:'pointer'}} onClick={()=>setShowCheckin(true)} onTouchStart={()=>setShowCheckin(true)}><div style={{fontSize:10,color:'#8A9785'}}>打卡</div><div style={{fontSize:15,fontWeight:800}}>🔥{checkinDays.count}天</div></div>
+        <div style={{flex:1,background:'#fff',border:'1px solid #5B8C5A',borderRadius:14,padding:10,textAlign:'center',cursor:'pointer'}} onClick={()=>setShowCheckin(true)} onTouchStart={()=>setShowCheckin(true)}><div style={{fontSize:10,color:'#8A9785'}}>打卡</div><div style={{fontSize:15,fontWeight:800}}>🔥{checkinDays.count}</div></div>
       </div>
 
-      <div style={{display:'flex',gap:8,marginTop:8}}>
-        <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:12,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>主业</div><div style={{fontSize:14,fontWeight:800}}>+{incMain}</div></div>
-        <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:12,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>副业</div><div style={{fontSize:14,fontWeight:800}}>+{incSide}</div></div>
-        <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:12,padding:10,textAlign:'center'}}><div style={{fontSize:10,color:'#8A9785'}}>回收站</div><button onClick={()=>setShowTrash(true)} style={{background:'none',border:'none',color:'#3A4437',fontSize:14,fontWeight:800}}>🗑{trash.length}</button></div>
+      {/* 存款目标 */}
+      <div style={{background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:14,marginTop:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontSize:13,color:'#8A9785'}}>🏦 存款余额</span>
+          <button onClick={()=>{const v=prompt('输入你的存款余额',String(savings.saved));const n=parseFloat(v||'');if(n>=0)setSavings(s=>({...s,saved:n}));}} style={{background:'#5B8C5A',border:'none',borderRadius:10,padding:'6px 12px',color:'#fff',fontSize:13}}>¥{savings.saved} 改</button>
+        </div>
+        <div style={{fontSize:22,fontWeight:800,margin:'8px 0 4px'}}>¥{savings.saved}</div>
+        <div style={{fontSize:11,color:'#8A9785'}}>每月固定存 ¥{savings.monthSave}{savings.monthSave>0&&savings.saved<savings.shortTarget?`  · 还差 ${Math.ceil((savings.shortTarget-savings.saved)/savings.monthSave)} 个月`:' · 目标达成！'}</div>
+        <GoalBar label="短目标" target={savings.shortTarget} pct={shortPct} color="#5B8C5A"/>
+        <GoalBar label="长目标" target={savings.longTarget} pct={longPct} color="#3F8F82"/>
+        {savings.saved>=savings.shortTarget&&<div style={{fontSize:13,color:'#5B8C5A',marginTop:8,textAlign:'center'}}>🎉 已达成短目标！你太棒了！</div>}
       </div>
 
+      {/* 预算 */}
       <div style={{background:'#fff',border:'1px solid '+(overBudget?'#E07A5F':'#E5ECDE'),borderRadius:14,padding:12,marginTop:10}}>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:12}}><span style={{color:'#8A9785'}}>本月预算</span><button onClick={()=>{const v=prompt('设置月预算',String(savings.budget));const n=parseFloat(v||'');if(n>0)setSavings(s=>({...s,budget:n}));}} style={{background:'none',border:'none',color:'#5B8C5A',fontSize:12}}>¥{savings.budget} 改</button></div>
         <div style={{fontSize:18,fontWeight:800,color:overBudget?'#E07A5F':(budgetPct>70?'#F2A65A':'#3A4437')}}>¥{monthExpense} <span style={{fontSize:12,color:'#8A9785'}}>/ ¥{savings.budget}</span></div>
@@ -81,17 +104,15 @@ export default function Money(){
         {overBudget?<div style={{fontSize:12,color:'#E07A5F',marginTop:6}}>⚠️已超预算</div>:<div style={{fontSize:12,color:'#8A9785',marginTop:6}}>已用{budgetPct}%{trendTip?('·'+trendTip):''}</div>}
       </div>
 
+      {/* 快捷记账 */}
       <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:10}}>
-        {QUICK.map(([label,amt])=>(<button key={label as string} onClick={()=>addWith(parseFloat(amt as string),'餐饮')} onTouchStart={()=>addWith(parseFloat(amt as string),'餐饮')} style={{padding:'7px 11px',borderRadius:20,border:'1px solid #E5ECDE',background:'#fff',fontSize:12,color:'#3A4437',touchAction:'manipulation'}}>{label} ¥{amt}</button>))}
+        {QUICK.map(([label,amt])=>(<button key={label as string} onClick={()=>addWith(parseFloat(amt as string),'餐饮')} onTouchStart={()=>addWith(parseFloat(amt as string),'餐饮')} style={{padding:'7px 11px',borderRadius:20,border:'1px solid #E5ECDE',background:'#fff',fontSize:12,color:'#3A4437',touchAction:'manipulation'}}>{label}¥{amt}</button>))}
       </div>
 
       <div style={{display:'flex',gap:10,marginTop:12}}>
         <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:10,textAlign:'center'}}>
           <div style={{fontSize:11,color:'#8A9785',marginBottom:6}}>{type==='支出'?'支出分类':'收入分类'}</div>
-          <div style={{position:'relative',width:90,height:90,margin:'0 auto'}}>
-            <svg width="90" height="90" viewBox="0 0 42 42" style={{transform:'rotate(-90deg)'}}><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EDF2E8" strokeWidth="6"/>{arcs.map((a,i)=>(<circle key={i} cx="21" cy="21" r="15.9" fill="none" stroke={a.color} strokeWidth="6" strokeDasharray={`${a.pct*100} ${100-a.pct*100}`} strokeDashoffset={-a.from/360*100}/>))}</svg>
-            <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{chartTotal}</div>
-          </div>
+          <div style={{position:'relative',width:90,height:90,margin:'0 auto'}}><svg width="90" height="90" viewBox="0 0 42 42" style={{transform:'rotate(-90deg)'}}><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EDF2E8" strokeWidth="6"/>{arcs.map((a,i)=>(<circle key={i} cx="21" cy="21" r="15.9" fill="none" stroke={a.color} strokeWidth="6" strokeDasharray={`${a.pct*100} ${100-a.pct*100}`} strokeDashoffset={-a.from/360*100}/>))}</svg><div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{chartTotal}</div></div>
           {chartData.slice(0,3).map(([c,v],i)=>(<div key={c} style={{display:'flex',justifyContent:'space-between',fontSize:10,padding:'3px 0'}}><span><span style={{display:'inline-block',width:8,height:8,borderRadius:2,background:RING_COLORS[i%RING_COLORS.length],marginRight:4}}/>{c}</span><span style={{color:'#8A9785'}}>{v}</span></div>))}
         </div>
         <div style={{flex:1,background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:10}}>
@@ -100,18 +121,12 @@ export default function Money(){
         </div>
       </div>
 
-      <div style={{background:'#fff',border:'1px solid #E5ECDE',borderRadius:14,padding:12,marginTop:10}}>
-        <div style={{fontSize:12,color:'#8A9785'}}>🏦存款¥{savings.saved}/短目标¥{savings.shortTarget}</div>
-        <div style={{height:8,borderRadius:4,background:'#EDF2E8',overflow:'hidden',marginTop:6}}><div style={{height:'100%',width:Math.min(100,Math.round(savings.saved/savings.shortTarget*100))+'%',background:'#5B8C5A'}}/></div>
-        <div style={{display:'flex',gap:6,marginTop:10}}>{['短目标','长目标'].map(k=>(<button key={k} onClick={()=>{const v=prompt('修改'+k,k==='短目标'?String(savings.shortTarget):String(savings.longTarget));const n=parseFloat(v||'');if(n>0)setSavings(s=>({...s,[k==='短目标'?'shortTarget':'longTarget']:n}));}} style={{flex:1,padding:'7px',borderRadius:10,border:'1px solid #E5ECDE',background:'#F4F7F0',fontSize:12,color:'#3A4437'}}>改{k}</button>))}</div>
-      </div>
-
       <div style={{display:'flex',gap:8,marginTop:12,flexWrap:'wrap',alignItems:'center'}}>
         <button onClick={()=>setView('月' as any)} style={{padding:'6px 12px',borderRadius:12,border:view==='月'?'2px solid #5B8C5A':'1px solid #E5ECDE',background:view==='月'?'#EDF6EB':'#fff',color:view==='月'?'#5B8C5A':'#3A4437',fontSize:12}}>月</button>
         <button onClick={()=>setView('年' as any)} style={{padding:'6px 12px',borderRadius:12,border:view==='年'?'2px solid #5B8C5A':'1px solid #E5ECDE',background:view==='年'?'#EDF6EB':'#fff',color:view==='年'?'#5B8C5A':'#3A4437',fontSize:12}}>年</button>
-        <select value={filter} onChange={e=>setFilter(e.target.value)} style={{padding:'6px 10px',borderRadius:12,border:'1px solid #E5ECDE',fontSize:12,background:'#fff'}}><option value="全部">全部分类</option>{[...EXP_CATS,...INC_CATS].map(c=>(<option key={c} value={c}>{c}</option>))}</select>
+        <select value={filter} onChange={e=>setFilter(e.target.value)} style={{padding:'6px 10px',borderRadius:12,border:'1px solid #E5ECDE',fontSize:12,background:'#fff'}}><option value="全部">全部</option>{[...EXP_CATS,...INC_CATS].map(c=>(<option key={c} value={c}>{c}</option>))}</select>
       </div>
-      {(view==='月'?monthStat:yearStat).map(([k,d]:any)=>(<div key={k} style={{display:'flex',justifyContent:'space-between',background:'#fff',border:'1px solid #E5ECDE',borderRadius:10,padding:8,marginTop:6,fontSize:12}}><span>{k}</span><span style={{color:'#5B8C5A'}}>收+{d.income}</span><span style={{color:'#E07A5F'}}>支-{d.expense}</span><span>结余{d.income-d.expense}</span></div>))}
+      {(view==='月'?monthStat:yearStat).map(([k,d]:any)=>(<div key={k} style={{display:'flex',justifyContent:'space-between',background:'#fff',border:'1px solid #E5ECDE',borderRadius:10,padding:8,marginTop:6,fontSize:12}}><span>{k}</span><span style={{color:'#5B8C5A'}}>收+{d.income}</span><span style={{color:'#E07A5F'}}>支-{d.expense}</span><span>余{d.income-d.expense}</span></div>))}
 
       <div style={{marginTop:12}}>
         <div style={{fontSize:13,color:'#8A9785',marginBottom:6}}>{filter==='全部'?'全部记录':filter}</div>
