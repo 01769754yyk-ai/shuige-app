@@ -3,14 +3,19 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: '水哥清单 · 把喜欢的事慢慢做完',
-  description: '个人专属成长清单',
+  description: '个人生活管理 App',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '水哥清单',
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#FFF9F0',
+  themeColor: '#5B8C5A',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
