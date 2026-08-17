@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 const NAME_KEY = 'shuige:name';
 const COUNT_KEY = 'countdown_v1';
 const ALL_KEYS = ['tasks_v1', 'money_v1', 'diary_v1', 'countdown_v1', 'branches_v1', 'shuige:name', 'shuige:city'];
+const SUPABASE_URL = 'https://pxxasqqitngbskfxbobt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eGFzcXFpdG5nYnNrZnhib2J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NTY4NjYsImV4cCI6MjEwMjUzMjg2Nn0.-enHkG_nT5BAQAzp4RExrBmULYAVoiS5DpjfWP4mF7o';
 function get(k: string) { if (typeof window === 'undefined') return null; try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : null } catch { return null } }
 function NavBar({ active }: { active: string }) {
   const items = [['home', '首页', '/'], ['money', '记账', '/money'], ['ai', 'AI助手', '/ai'], ['profile', '我的', '/profile']];
@@ -16,6 +18,7 @@ export default function Profile() {
   const [name, setName] = useState('小鑫');
   const [counts, setCounts] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
+  const [cloudMsg, setCloudMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,6 +48,21 @@ export default function Profile() {
       } catch (e) { alert('导入失败：文件不是有效的备份'); }
     };
     reader.readAsText(file);
+  };
+
+  const cloudName = 'default';
+  const downloadCloud = async () => {
+    if (!confirm('⚠️ 确定从云端恢复数据吗？\n这会把云端数据覆盖到当前设备，当前设备上云端没有的新数据可能丢失。\n建议先导出备份。')) return;
+    setCloudMsg('⏳ 下载中…');
+    try {
+      const rows = await fetch(SUPABASE_URL + '/rest/v1/user_data?name=eq.' + encodeURIComponent(cloudName) + '&select=data', { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }).then(r => r.json());
+      if (!rows || !rows[0] || !rows[0].data) { setCloudMsg('ℹ️ 云端暂无数据'); setTimeout(() => setCloudMsg(''), 3000); return; }
+      const data = JSON.parse(rows[0].data);
+      ALL_KEYS.forEach(k => { if (data[k] !== undefined) { try { localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])); } catch { } } });
+      setCloudMsg('✅ 已从云端恢复，请刷新页面'); setTimeout(() => { window.location.reload(); }, 1200);
+    } catch (e: any) {
+      setCloudMsg('❌ 下载失败：' + String(e && e.message || e)); setTimeout(() => setCloudMsg(''), 4000);
+    }
   };
 
   const entries = [['💰', '记账', '/money'], ['📔', '日记', '/diary'], ['⏳', '倒数日', '/countdown'], ['📊', '洞察', '/insights']];
@@ -82,8 +100,10 @@ export default function Profile() {
 
       <div style={{ marginTop: 22 }}>
         <div style={{ fontSize: 13, color: '#A99585', marginBottom: 8 }}>☁️ 云备份</div>
-        <div style={{ background: '#EAF4EA', border: '1px solid #CBE3CC', borderRadius: 14, padding: 14, fontSize: 13, color: '#3A4437' }}>你的任务、记账等数据会<strong>自动保存到云端</strong>，换设备/清缓存后可在云端找回。</div>
-        <div style={{ fontSize: 11, color: '#A99585', marginTop: 8 }}>每次修改后自动备份 · 无需手动操作</div>
+        <div style={{ background: '#EAF4EA', border: '1px solid #CBE3CC', borderRadius: 14, padding: 14, fontSize: 13, color: '#3A4437' }}>你的数据会<strong>自动保存到云端</strong>，换设备可从这里恢复。</div>
+        <button onPointerUp={downloadCloud} style={{ marginTop: 10, width: '100%', height: 48, borderRadius: 14, border: '1.5px solid #7A9CC6', background: '#fff', color: '#7A9CC6', fontSize: 15, fontWeight: 700 }}>☁️ 从云端恢复数据</button>
+        {cloudMsg && <div style={{ textAlign: 'center', color: '#5B8C5A', fontSize: 13, marginTop: 10 }}>{cloudMsg}</div>}
+        <div style={{ fontSize: 11, color: '#A99585', marginTop: 8 }}>换新设备时点此恢复 · 会先确认再覆盖</div>
       </div>
 
       <div style={{ marginTop: 22 }}>
@@ -95,7 +115,7 @@ export default function Profile() {
         <div style={{ fontSize: 11, color: '#A99585', marginTop: 8 }}>导出备份防丢失 · 换手机后导入恢复</div>
       </div>
 
-      <div style={{ textAlign: 'center', color: '#A99585', fontSize: 11, marginTop: 18 }}>水哥清单 v1.3.1</div>
+      <div style={{ textAlign: 'center', color: '#A99585', fontSize: 11, marginTop: 18 }}>水哥清单 v1.3.2</div>
       <NavBar active="profile" />
     </div>
   );
