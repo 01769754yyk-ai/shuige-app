@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 const NAME_KEY = 'shuige:name';
 const COUNT_KEY = 'countdown_v1';
 const ALL_KEYS = ['tasks_v1', 'money_v1', 'diary_v1', 'countdown_v1', 'branches_v1', 'shuige:name', 'shuige:city'];
+const SUPABASE_URL = 'https://pxxasqqitngbskfxbobt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eGFzcXFpdG5nYnNrZnhib2J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NTY4NjYsImV4cCI6MjEwMjUzMjg2Nn0.-enHkG_nT5BAQAzp4RExrBmULYAVoiS5DpjfWP4mF7o';
 function get(k: string) { if (typeof window === 'undefined') return null; try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : null } catch { return null } }
 function NavBar({ active }: { active: string }) {
   const items = [['home', '首页', '/'], ['money', '记账', '/money'], ['ai', 'AI助手', '/ai'], ['profile', '我的', '/profile']];
@@ -16,6 +18,7 @@ export default function Profile() {
   const [name, setName] = useState('小鑫');
   const [counts, setCounts] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
+  const [cloudMsg, setCloudMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,7 +50,43 @@ export default function Profile() {
     reader.readAsText(file);
   };
 
-  const entries = [['💰', '记账', '/money'], ['🤖', 'AI助手', '/ai'], ['📔', '日记', '/diary'], ['⏳', '倒数日', '/countdown'], ['📊', '洞察', '/insights']];
+  const cloudName = name || 'default';
+  const collectData = () => {
+    const data: any = {};
+    ALL_KEYS.forEach(k => { try { const v = localStorage.getItem(k); if (v) data[k] = JSON.parse(v); } catch { } });
+    data.__savedAt = new Date().toISOString();
+    return data;
+  };
+  const uploadCloud = async () => {
+    setCloudMsg('⏳ 上传中…');
+    try {
+      const data = collectData();
+      const found = await fetch(SUPABASE_URL + '/rest/v1/user_data?name=eq.' + encodeURIComponent(cloudName) + '&select=id', { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }).then(r => r.json());
+      const payload = { name: cloudName, data: JSON.stringify(data) };
+      if (found && found.length > 0) {
+        await fetch(SUPABASE_URL + '/rest/v1/user_data?id=eq.' + found[0].id, { method: 'PATCH', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ data: payload.data }) });
+      } else {
+        await fetch(SUPABASE_URL + '/rest/v1/user_data', { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(payload) });
+      }
+      setCloudMsg('✅ 已上传到云端'); setTimeout(() => setCloudMsg(''), 2500);
+    } catch (e: any) {
+      setCloudMsg('❌ 上传失败：' + String(e && e.message || e)); setTimeout(() => setCloudMsg(''), 4000);
+    }
+  };
+  const downloadCloud = async () => {
+    setCloudMsg('⏳ 下载中…');
+    try {
+      const rows = await fetch(SUPABASE_URL + '/rest/v1/user_data?name=eq.' + encodeURIComponent(cloudName) + '&select=data', { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }).then(r => r.json());
+      if (!rows || !rows[0] || !rows[0].data) { setCloudMsg('ℹ️ 云端暂无此账号的数据'); setTimeout(() => setCloudMsg(''), 3000); return; }
+      const data = JSON.parse(rows[0].data);
+      ALL_KEYS.forEach(k => { if (data[k] !== undefined) { try { localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])); } catch { } } });
+      setCloudMsg('✅ 已从云端恢复，请刷新页面'); setTimeout(() => { window.location.reload(); }, 1200);
+    } catch (e: any) {
+      setCloudMsg('❌ 下载失败：' + String(e && e.message || e)); setTimeout(() => setCloudMsg(''), 4000);
+    }
+  };
+
+  const entries = [['💰', '记账', '/money'], ['📔', '日记', '/diary'], ['⏳', '倒数日', '/countdown'], ['📊', '洞察', '/insights']];
 
   return (
     <div style={{ minHeight: '100vh', padding: '16px 14px 80px', background: '#F4F7F0', color: '#3A4437', fontSize: 15 }}>
@@ -81,6 +120,14 @@ export default function Profile() {
       </div>
 
       <div style={{ marginTop: 22 }}>
+        <div style={{ fontSize: 13, color: '#A99585', marginBottom: 8 }}>☁️ 云端同步</div>
+        <button onPointerUp={uploadCloud} style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#7A9CC6', color: '#fff', fontSize: 15, fontWeight: 700 }}>☁️ 上传数据到云端</button>
+        <button onPointerUp={downloadCloud} style={{ marginTop: 8, width: '100%', height: 48, borderRadius: 14, border: '1.5px solid #7A9CC6', background: '#fff', color: '#7A9CC6', fontSize: 15, fontWeight: 700 }}>☁️ 从云端恢复数据</button>
+        {cloudMsg && <div style={{ textAlign: 'center', color: '#5B8C5A', fontSize: 13, marginTop: 10 }}>{cloudMsg}</div>}
+        <div style={{ fontSize: 11, color: '#A99585', marginTop: 8 }}>账号：{cloudName} · 上传后换设备可在此恢复</div>
+      </div>
+
+      <div style={{ marginTop: 22 }}>
         <div style={{ fontSize: 13, color: '#A99585', marginBottom: 8 }}>数据备份</div>
         <button onPointerUp={exportAll} style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#5B8C5A', color: '#fff', fontSize: 15, fontWeight: 700 }}>📤 导出全部备份</button>
         <button onPointerUp={() => fileRef.current?.click()} style={{ marginTop: 8, width: '100%', height: 48, borderRadius: 14, border: '1.5px solid #5B8C5A', background: '#fff', color: '#5B8C5A', fontSize: 15, fontWeight: 700 }}>📥 导入恢复数据</button>
@@ -89,7 +136,7 @@ export default function Profile() {
         <div style={{ fontSize: 11, color: '#A99585', marginTop: 8 }}>导出备份防丢失 · 换手机后导入恢复</div>
       </div>
 
-      <div style={{ textAlign: 'center', color: '#A99585', fontSize: 11, marginTop: 18 }}>水哥清单 v1.2.0</div>
+      <div style={{ textAlign: 'center', color: '#A99585', fontSize: 11, marginTop: 18 }}>水哥清单 v1.3.0</div>
       <NavBar active="profile" />
     </div>
   );
