@@ -31,14 +31,13 @@ export default function AI() {
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
-    const userMsgWithData = userMsg + '\n\n（我当前的数据如下，请结合数据回答）\n' + getDataSummary();
-    const nowMsgs = [...msgs, { role: 'user', content: userMsgWithData }];
+    const nowMsgs = [...msgs, { role: 'user', content: userMsg }];
     setMsgs(nowMsgs); setInput(''); setLoading(true);
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nowMsgs }),
+        body: JSON.stringify({ messages: nowMsgs, extra: getDataSummary() }),
       });
       const data = await res.json();
       const reply = data?.choices?.[0]?.message?.content || '（AI 暂无回复）';
@@ -63,7 +62,7 @@ export default function AI() {
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, position: 'sticky', bottom: 70, background: '#F4F7F0', padding: '8px 0' }}>
         <input value={input} onChange={e => setInput(e.target.value)} placeholder="输入问题…" onKeyDown={e => { if (e.key === 'Enter') send(); }} style={{ flex: 1, padding: 12, borderRadius: 20, border: '1.5px solid #E5ECDE', fontSize: 14, background: '#fff', outline: 'none' }} />
-        <button onPointerUp={send} disabled={loading} style={{ padding: '12px 18px', borderRadius: 20, border: 'none', background: loading ? '#A8B2A5' : '#5B8C5A', color: '#fff', fontSize: 14, fontWeight: 700 }}>发送</button>
+        <button type="button" onPointerUp={send} onClick={send} disabled={loading} style={{ padding: '12px 18px', borderRadius: 20, border: 'none', background: loading ? '#A8B2A5' : '#5B8C5A', color: '#fff', fontSize: 14, fontWeight: 700 }}>发送</button>
       </div>
       <NavBar />
     </div>
