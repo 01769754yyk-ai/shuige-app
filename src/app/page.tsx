@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { autoUpload } from './cloudsync';
 const KEY = 'shuige:v1';
 const TASK_KEY = 'tasks_v1';
 const AMAP_KEY = 'f36c4c37cbae8828b32953cb7de7481d';
@@ -26,18 +27,18 @@ export default function Home() {
   const [newTitle, setNewTitle] = useState('');
 
   useEffect(() => { const t = loadTasks(); if (t && t.length) setTasks(t); const s = load(); if (s && typeof s.city === 'string' && s.city) setCity(s.city); }, []);
-  useEffect(() => { try { localStorage.setItem(TASK_KEY, JSON.stringify(tasks)); } catch (e) { } }, [tasks]);
+  useEffect(() => { try { localStorage.setItem(TASK_KEY, JSON.stringify(tasks)); autoUpload(); } catch (e) { } }, [tasks]);
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ city })); } catch (e) { } }, [city]);
   useEffect(() => { fetch('https://v1.hitokoto.cn/').then(r => r.json()).then(d => { if (d.hitokoto) setQuote(d.hitokoto); }).catch(() => { }); }, []);
   useEffect(() => { const now = new Date(); setDateStr(now.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' })); const h = now.getHours(); let g = '晚上好'; if (h >= 5 && h < 11) g = '早上好'; else if (h >= 11 && h < 14) g = '中午好'; else if (h >= 14 && h < 18) g = '下午好'; setGreet(g); }, []);
   useEffect(() => { if (typeof city === 'string' && city.trim()) amapWeather(city.trim()); }, [city]);
   useEffect(() => { fetch(`https://restapi.amap.com/v3/ip?key=${AMAP_KEY}`).then(r => r.json()).then(d => { const c = (d?.city && d.city !== '[]' && d.city !== '') ? (d.city as string) : ((d?.province as string) || '成都'); setCity(typeof c === 'string' ? c : '成都'); }).catch(() => setCity('成都')); }, []);
-  function amapWeather(c) { fetch(`https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(c)}&key=${AMAP_KEY}`).then(r => r.json()).then(g => { const adcode = g?.geocodes?.[0]?.adcode; if (adcode) amapWeatherBy(adcode); }).catch(() => { }); }
-  function amapWeatherBy(adcode) { fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`).then(r => r.json()).then(w => { const l = w?.lives?.[0]; if (l) { const t = l.temperature ? l.temperature + '°C' : '--'; const ds = l.weather || ''; const ic = ds.includes('雨') ? '🌧️' : ds.includes('云') ? '☁️' : ds.includes('雪') ? '❄️' : ds.includes('晴') ? '☀️' : '🌤️'; setWeather({ temp: t, desc: ds, icon: ic }); if (l.city) setCity(l.city); } }).catch(() => { }); }
+  function amapWeather(c: any) { fetch(`https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(c)}&key=${AMAP_KEY}`).then(r => r.json()).then((g: any) => { const adcode = g?.geocodes?.[0]?.adcode; if (adcode) amapWeatherBy(adcode); }).catch(() => { }); }
+  function amapWeatherBy(adcode: any) { fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`).then(r => r.json()).then((w: any) => { const l = w?.lives?.[0]; if (l) { const t = l.temperature ? l.temperature + '°C' : '--'; const ds = l.weather || ''; const ic = ds.includes('雨') ? '🌧️' : ds.includes('云') ? '☁️' : ds.includes('雪') ? '❄️' : ds.includes('晴') ? '☀️' : '🌤️'; setWeather({ temp: t, desc: ds, icon: ic }); if (l.city) setCity(l.city); } }).catch(() => { }); }
   const done = tasks.filter((t: any) => t.done).length;
-  const toggle = (id: any) => { const next = tasks.map((t: any) => t.id === id ? { ...t, done: !t.done } : t); setTasks(next); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); } catch (e) { } };
-  const delTask = (id: any) => { const next = tasks.filter((t: any) => t.id !== id); setTasks(next); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); } catch (e) { } };
-  const addTask = () => { if (!newTitle.trim()) return; const next = [{ id: Date.now() + '', title: newTitle.trim(), done: false, cat: '自定义' }, ...tasks]; setTasks(next); setNewTitle(''); setShowAdd(false); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); } catch (e) { } };
+  const toggle = (id: any) => { const next = tasks.map((t: any) => t.id === id ? { ...t, done: !t.done } : t); setTasks(next); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); autoUpload(); } catch (e) { } };
+  const delTask = (id: any) => { const next = tasks.filter((t: any) => t.id !== id); setTasks(next); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); autoUpload(); } catch (e) { } };
+  const addTask = () => { if (!newTitle.trim()) return; const next = [{ id: Date.now() + '', title: newTitle.trim(), done: false, cat: '自定义' }, ...tasks]; setTasks(next); setNewTitle(''); setShowAdd(false); try { localStorage.setItem(TASK_KEY, JSON.stringify(next)); autoUpload(); } catch (e) { } };
   const card: any = { background: '#fff', border: '1px solid #E5ECDE', borderRadius: 16, padding: 14 };
 
   return (
