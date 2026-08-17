@@ -15,8 +15,15 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'system', content: systemPrompt }, ...messages] }),
     });
     const data = await res.json();
-    return NextResponse.json({ ok: res.ok, status: res.status, data });
+    if (!data?.choices?.[0]?.message?.content) {
+      return NextResponse.json({
+        choices: [{ message: { role: 'assistant', content: '联系AI出错：' + JSON.stringify(data) } }],
+      });
+    }
+    return NextResponse.json(data);
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e && e.message || e) });
+    return NextResponse.json({
+      choices: [{ message: { role: 'assistant', content: '连接AI出错：' + String(e && e.message || e) } }],
+    });
   }
 }
