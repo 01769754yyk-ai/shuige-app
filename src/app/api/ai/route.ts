@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'system', content: systemPrompt }, ...messages] }),
     });
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ ok: res.ok, status: res.status, data });
   } catch (e: any) {
-    return NextResponse.json({ error: String(e && e.message || e) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: String(e && e.message || e) });
   }
 }
