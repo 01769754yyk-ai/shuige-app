@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const messages = body?.messages || [];
     const extra = body?.extra || '';
     const base = 'https://api.deepseek.com/v1/chat/completions';
-    const apiKey = 'sk-9c23f055a6984b4ca463362fbddf6bc1';
+    const apiKey = 'sk-7093c7c9ac1a410fa81df15a572c7c03';
     const systemPrompt = '你是一个友好的生活助手，名叫水哥清单助手。请用简洁、温暖的中文回答。' +
       (extra ? '\n\n以下是用户当前的数据，回答相关问题时请参考：\n' + extra : '');
     const res = await fetch(base, {
