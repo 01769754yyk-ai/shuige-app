@@ -8,25 +8,43 @@ function NavBar() {
     </nav>
   );
 }
+
+function getDataSummary() {
+  let money = [];
+  let tasks = [];
+  try { money = JSON.parse(localStorage.getItem('money_v1') || '[]'); } catch (e) { money = []; }
+  try { tasks = JSON.parse(localStorage.getItem('tasks_v1') || '[]'); } catch (e) { tasks = []; }
+  let s = '【你的记账数据】\n';
+  if (money.length === 0) { s += '（暂无记账）\n'; }
+  else { money.forEach((m: any) => { s += `日期:${m.date || '?'} 分类:${m.category || '?'} 金额:${m.amount || 0} ${m.note || ''}\n`; }); }
+  s += '【你的任务数据】\n';
+  if (tasks.length === 0) { s += '（暂无任务）\n'; }
+  else { tasks.forEach((t: any) => { s += `任务:${t.text || t.title || '?'} 完成:${t.done ? '是' : '否'}\n`; }); }
+  return s;
+}
+
 export default function AI() {
-  const [msgs, setMsgs] = useState<any[]>([{ role: 'assistant', content: '你好！我是你的 AI 助手，有什么可以帮你？' }]);
+  const [msgs, setMsgs] = useState<any[]>([{ role: 'assistant', content: '你好！我是你的 AI 助手，我已经能读取你的记账和任务数据，你可以问我「这个月花了多少」「今天任务完成得怎么样」等问题。' }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
-    const nowMsgs = [...msgs, { role: 'user', content: userMsg }];
+    const userMsgWithData = userMsg + '\n\n（我当前的数据如下，请结合数据回答）\n' + getDataSummary();
+    const nowMsgs = [...msgs, { role: 'user', content: userMsgWithData }];
     setMsgs(nowMsgs); setInput(''); setLoading(true);
     try {
-      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: nowMsgs }) });
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nowMsgs }),
+      });
       const data = await res.json();
-      // 优先用真实内容
-      const reply = data?.data?.choices?.[0]?.message?.content
-        || (data?.__error ? '⚠️ ' + data.__error : '（AI 暂无回复）');
+      const reply = data?.choices?.[0]?.message?.content || '（AI 暂无回复）';
       setMsgs([...nowMsgs, { role: 'assistant', content: reply }]);
     } catch (e: any) {
-      setMsgs([...nowMsgs, { role: 'assistant', content: '⚠️ 请求异常：' + (e?.message || '未知') }]);
+      setMsgs([...nowMsgs, { role: 'assistant', content: '⚠️ 连接 AI 失败，请稍后再试' }]);
     }
     setLoading(false);
   };
